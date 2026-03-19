@@ -1,11 +1,19 @@
 import random
-from typing import List, Dict, Any
+import  allure
+import time
+from typing import List, Dict, Any, Optional, Tuple
 import requests
 from datetime import datetime, timedelta
 
 
 class CargoPlaceCreateOrUpdateListClient:
     CARGO_TYPES = ["free", "pallet", "box", "bag"]
+
+    VALID_EXTERNAL_ID: List[Tuple[str, str]] = [
+        ("VALID_EXTERNAL_ID_001", "VALID_EXTERNAL_ID_002"),
+        ("VALID_EXTERNAL_ID_003", "VALID_EXTERNAL_ID_004"),
+        ("VALID_EXTERNAL_ID_005", "VALID_EXTERNAL_ID_006"),
+    ]
 
     def __init__(self, base_url: str, token: str):
         self.base_url = base_url.rstrip("/")
@@ -73,27 +81,38 @@ class CargoPlaceCreateOrUpdateListClient:
     def generate_cargo_places_list(
             self,
             count: int,
-            departure_external_id: str = "Izhevsk 76-276",
-            delivery_external_id: str = "Izhevsk 36-950",
-            role: str = "test"
+            departure_external_id: Optional[str] = None,
+            delivery_external_id: Optional[str] = None,
+            role: str = "test",
+            use_predefined_addresses: bool = True
     ) -> List[Dict[str, Any]]:
         """
         Генерирует список из count грузомест
 
         Args:
             count: Количество грузомест для создания
-            departure_external_id: Внешний ID адреса отправления
-            delivery_external_id: Внешний ID адреса доставки
+            departure_external_id: Внешний ID адреса отправления (если не указан - берётся из списка)
+            delivery_external_id: Внешний ID адреса доставки (если не указан - берётся из списка)
             role: Роль для генерации уникальных ID
+            use_predefined_addresses: Использовать ли предопределённые адреса
 
         Returns:
             Список словарей с данными грузомест
         """
         cargo_list = []
         for i in range(count):
+
+            # Если нужны предопределённые адреса - берём их по циклу
+            if use_predefined_addresses and self.VALID_EXTERNAL_ID:
+                dep_ext, del_ext = self.VALID_EXTERNAL_ID[i % len(self.VALID_EXTERNAL_ID)]
+            else:
+                # Или используем переданные вручную / дефолтные
+                dep_ext = departure_external_id or "Izhevsk 76-276"
+                del_ext = delivery_external_id or "Izhevsk 36-950"
+
             cargo = self.generate_cargo_place(
-                departure_external_id=departure_external_id,
-                delivery_external_id=delivery_external_id,
+                departure_external_id=dep_ext,
+                delivery_external_id=del_ext,
                 external_id=f"EXT-GM-{role}-{i + 1:03d}",
                 bar_code=f"BC-{role}-{i + 1:03d}",
                 invoice_number=f"INV-{role}-{i + 1:03d}",
@@ -116,4 +135,41 @@ class CargoPlaceCreateOrUpdateListClient:
             response.raise_for_status()
 
         return response.json()
+
+    def create_cargo_places_batch(
+            self,
+            cargo_places: List[Dict[str, Any]],
+            batch_size: int = 100
+    ) -> List[Dict[str, Any]]:
+        """
+        Создаёт грузоместа пакетами по N штук
+
+        Args:
+            cargo_places: Полный список грузомест для создания
+            batch_size: Максимальное количество грузомест в одном запросе
+
+        Returns:
+            Список всех ответов от сервера (по одному на каждый батч)
+        """
+        all_responses = []
+        total_count = len(cargo_places)
+        total_batches = (total_count + batch_size - 1) // batch_size
+
+        # Разбиваем на батчи по 100
+        for i in range(0, total_count, batch_size):
+            batch = cargo_places[i:i + batch_size]
+            batch_number = (i // batch_size) + 1
+
+            print(f"\n📦 Отправка батча {batch_number}/{total_batches} ({len(batch)} грузомест)")
+
+            with allure.step(f"Батч {batch_number}/{total_batches}: Создание {len(batch)} грузомест"):
+                response = self.create_or_update_cargo_places_list(batch)
+                all_responses.append(response)
+
+                # Проверка ответа для каждого батча
+                assert response.get("status") == "ok", f"Батч {batch_number} не успешен: {response}"
+
+            time.sleep(1)
+
+        return all_responses
 

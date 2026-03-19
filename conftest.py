@@ -1,6 +1,6 @@
 import pytest
 import requests
-from config.settings import BASE_URL, TIMEOUT, accounts
+from config.settings import *
 
 
 @pytest.fixture(scope="session")
@@ -23,13 +23,20 @@ def get_auth_token():
         print(f"\n[Auth] Запрос роли: {role}")
         print(f"[Auth] Email: {email}")
 
+        if role.endswith("_ext"):
+            login_url = f"{EXTERNAL_URL}/user/login"
+            print(f"[Auth] URL: {login_url} (EXTERNAL)")
+        else:
+            login_url = f"{BASE_URL}/user/login"
+            print(f"[Auth] URL: {login_url} (BASE)")
+
         payload = {
             "username": email,
             "password": password
         }
 
         response = requests.post(
-            f"{BASE_URL}/user/login",
+            login_url,
             json=payload,
             timeout=TIMEOUT
         )
