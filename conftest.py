@@ -89,6 +89,16 @@ def auth_token(request, get_auth_token):
     role = request.param
     return get_auth_token(role)["token"]
 
+@pytest.fixture
+def auth_token_ext(request, get_auth_token):
+    role = request.param
+    return get_auth_token(role)["token"]
+
+@pytest.fixture
+def auth_token_base(request, get_auth_token):
+    role = request.param
+    return get_auth_token(role)["token"]
+
 def pytest_addoption(parser):
     parser.addoption(
         "--cargo-count",

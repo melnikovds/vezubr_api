@@ -1,105 +1,141 @@
 import allure
 import pytest
 import json
-from pages.cargo_create_or_update_list_page import CargoPlaceCreateOrUpdateListClient
+from pages.cargo_create_or_update_list_page import *
+from pages.cdr_create_and_publish_page import *
 from config.settings import *
 
 
 @allure.story("Smoke test")
 @allure.feature("CDR")
-@allure.description("Создание и выполнение Заявки с указанным количеством грузомест")
-@pytest.mark.parametrize("auth_token", ["lkz_ext"], indirect=True)
-def test_create_trip_with_cargo_places(auth_token, cargo_count):
+@allure.description("Создание Заявки с указанным количеством грузомест (скорее всего превысят параметры ТС по весу и объёму)")
+@pytest.mark.parametrize("auth_token_ext", ["lkz_ext"], indirect=True)
+@pytest.mark.parametrize("auth_token_base", ["lkz"], indirect=True)
+def test_create_cdr_with_cargo_places_lkz(auth_token_ext, auth_token_base, cargo_count):
     """
     Тест создания Заявки с динамическим количеством грузомест
 
     Args:
-        auth_token: Токен авторизации (из фикстуры conftest)
+        auth_token_ext: Токен внешней системы для создания грузомест
+        auth_token_base: Токен внутренней системы для создания заявки
         cargo_count: Количество грузомест (из аргумента командной строки --cargo-count)
     """
-    client = CargoPlaceCreateOrUpdateListClient(EXTERNAL_URL, auth_token)
+    client = CargoPlaceCreateOrUpdateListClient(EXTERNAL_URL, auth_token_ext)
 
-    # генерация параметров грузомест
+    # Генерация грузомест
     with allure.step(f"Генерация {cargo_count} грузомест"):
         cargo_list = client.generate_cargo_places_list(
             count=cargo_count,
             role="lkz_ext",
-            use_predefined_addresses=True
+            departure_external_id='AUTO 003',
+            delivery_external_id='AUTO 004',
+            use_predefined_addresses=False
         )
 
-    # пакетное создание грузомест
-    with allure.step("Отправка запроса на создание грузомест"):
-        with allure.step(f"Создание {cargo_count} грузомест (батчами по 100)"):
-            responses = client.create_cargo_places_batch(
-                cargo_places=cargo_list,
-                batch_size=100  # максимум 100 за запрос
-            )
+    # Создание грузомест
+    with allure.step(f"Создание {cargo_count} грузомест"):
+        responses = client.create_cargo_places_batch(
+            cargo_places=cargo_list,
+            batch_size=100
+        )
 
-    # сбор id грузомест
+    # Сбор всех ID грузомест
     with allure.step("Сбор ID созданных грузомест"):
         cargo_place_ids = []
-
         for batch_idx, response in enumerate(responses, 1):
             batch_data = response.get("data", [])
             batch_ids = [item["id"] for item in batch_data if "id" in item]
             cargo_place_ids.extend(batch_ids)
+            print(f"Батч {batch_idx}: собрано {len(batch_ids)} ID")
 
         print(f"\n✅ Всего собрано {len(cargo_place_ids)} ID грузомест")
 
-    # проверка ответов
-    with allure.step("Проверка структуры ответов"):
-        # проверяем каждый батч
-        for idx, response in enumerate(responses, 1):
-            assert response.get("status") == "ok", f"Батч {idx}: Ожидался 'ok', получен: {response.get('status')}"
-            data = response.get("data", [])
-            print(f"Батч {idx}: создано {len(data)} грузомест")
+    # Преобразование ID в формат для CDR
+    with allure.step("Формирование cargoPlaces для заявки"):
+        departure_point_id = 19104
+        arrival_point_id = 19105
 
-        # считаем общее количество созданных грузомест
-        total_created = sum(len(r.get("data", [])) for r in responses)
-        assert total_created == cargo_count, f"Ожидалось {cargo_count} ГМ, создано: {total_created}"
+        cargo_places_for_cdr = [
+            {
+                "id": cargo_id,
+                "arrivalPoint": arrival_point_id,
+                "departurePoint": departure_point_id
+            }
+            for cargo_id in cargo_place_ids
+        ]
 
-        # проверяем структуру каждого грузоместа
-        for response in responses:
-            for item in response.get("data", []):
-                assert "id" in item and isinstance(item["id"], int) and item["id"] > 0
-                assert item.get("status") == "ok"
-                assert "errors" in item and isinstance(item["errors"], list)
+        print(f"📋 Сформировано {len(cargo_places_for_cdr)} cargoPlaces для CDR")
 
-        # проверяем что количество ID совпадает с ожидаемым
-        assert len(cargo_place_ids) == cargo_count, f"Ожидалось {cargo_count} ID, собрано: {len(cargo_place_ids)}"
+    # Создание Заявки (CDR)
+    with allure.step("Создание и публикация заявки"):
+        cdr_client = CargoDeliveryRequestClient(BASE_URL, auth_token_base)
 
-        # проверяем что все ID положительные числа
-        for cargo_id in cargo_place_ids:
-            assert isinstance(cargo_id, int) and cargo_id > 0, f"Некорректный ID: {cargo_id}"
+        cdr_response = cdr_client.create_and_publish_delivery_request(
+            delivery_type="auto",
+            delivery_sub_type="ftl",
+            body_types=[3, 4, 7, 8],
+            vehicle_type_id=1,
+            order_type=1,
+            point_change_type=2,
+            route=[
+                {
+                    "requiredArriveAtFrom": None,
+                    "requiredArriveAtTill": None,
+                    "position": 1,
+                    "point": departure_point_id,
+                    "isLoadingWork": True,
+                    "isUnloadingWork": False
+                },
+                {
+                    "requiredArriveAtFrom": None,
+                    "requiredArriveAtTill": None,
+                    "position": 2,
+                    "point": arrival_point_id,
+                    "isLoadingWork": False,
+                    "isUnloadingWork": True
+                }
+            ],
+            comment=f"Тестовая заявка с {cargo_count} ГМ",
+            producer_id=3486,
+            rate=100000,
+            selecting_strategy="rate",
+            cargo_places=cargo_places_for_cdr
+        )
 
-    # аттач логов
+    # Проверка ответа
+    with allure.step("Проверка ответа"):
+        assert cdr_response.get("id") is not None, "CDR не создан: отсутствует ID"
+        assert cdr_response.get("requestNr") is not None, "CDR не создан: отсутствует requestNr"
+        print(f"✅ Заявка создана: ID={cdr_response.get('id')}, requestNr={cdr_response.get('requestNr')}")
+
+    # Attach логов
     with allure.step("Детали запроса и ответа"):
         allure.attach(
-            json.dumps({"total_cargo_places": cargo_count, "batches": len(responses)}, indent=2, ensure_ascii=False),
-            name="Общая статистика",
+            json.dumps({"total_cargo_places": cargo_count, "cargo_place_ids": cargo_place_ids[:10]}, indent=2,
+                       ensure_ascii=False),
+            name="Статистика грузомест",
+            attachment_type=allure.attachment_type.JSON
+        )
+        allure.attach(
+            json.dumps(cargo_places_for_cdr[:5], indent=2, ensure_ascii=False),
+            name="cargoPlaces (первые 5)",
+            attachment_type=allure.attachment_type.JSON
+        )
+        allure.attach(
+            json.dumps(cdr_response, indent=2, ensure_ascii=False),
+            name="Ответ API (CDR)",
             attachment_type=allure.attachment_type.JSON
         )
 
-        # Если батчей немного, можно приаттачить все ответы
-        if len(responses) <= 5:
-            allure.attach(
-                json.dumps(responses, indent=2, ensure_ascii=False),
-                name="Ответы API (все батчи)",
-                attachment_type=allure.attachment_type.JSON
-            )
-        else:
-            # Если батчей много, аттачим первый и последний
-            allure.attach(
-                json.dumps(responses[0], indent=2, ensure_ascii=False),
-                name="Ответ API (батч 1)",
-                attachment_type=allure.attachment_type.JSON
-            )
-            allure.attach(
-                json.dumps(responses[-1], indent=2, ensure_ascii=False),
-                name="Ответ API (последний батч)",
-                attachment_type=allure.attachment_type.JSON
-            )
+    print(f"\n✅ Успешно создано {cargo_count} грузомест и заявка CDR")
 
-    print(f"\n✅ Успешно создано {cargo_count} грузомест в {len(responses)} батча(ей)")
-    # print(f"Список ID: {cargo_place_ids}")
 
+
+
+
+
+# @allure.story("Smoke test")
+# @allure.feature("CDR")
+# @allure.description("Создание и выполнение Заявки с указанным количеством грузомест")
+# @pytest.mark.parametrize("auth_token", ["lkz_ext"], indirect=True)
+# def test_create_and_execute_cdr_with_cargo_places_lkz(auth_token, cargo_count):

@@ -22,6 +22,12 @@ class CargoPlaceCreateOrUpdateListClient:
             "Content-Type": "application/json"
         }
 
+    def _generate_unique_external_id(self) -> str:
+        part1 = random.randint(1000, 9999)
+        part2 = random.randint(1000, 9999)
+        part3 = random.randint(100000, 999999)
+        return f"{part1}-{part2}-{part3}"
+
     def _generate_random_dimensions(self) -> Dict[str, int]:
         length = random.randint(10, 200)
         width = random.randint(10, 150)
@@ -107,15 +113,17 @@ class CargoPlaceCreateOrUpdateListClient:
                 dep_ext, del_ext = self.VALID_EXTERNAL_ID[i % len(self.VALID_EXTERNAL_ID)]
             else:
                 # Или используем переданные вручную / дефолтные
-                dep_ext = departure_external_id or "Izhevsk 76-276"
-                del_ext = delivery_external_id or "Izhevsk 36-950"
+                dep_ext = departure_external_id or "AUTO 001"
+                del_ext = delivery_external_id or "AUTO 002"
+
+            external_id = self._generate_unique_external_id()
 
             cargo = self.generate_cargo_place(
                 departure_external_id=dep_ext,
                 delivery_external_id=del_ext,
-                external_id=f"EXT-GM-{role}-{i + 1:03d}",
-                bar_code=f"BC-{role}-{i + 1:03d}",
-                invoice_number=f"INV-{role}-{i + 1:03d}",
+                external_id=f"GM-{role}-{external_id}",
+                bar_code=f"ШК-{role}-00000{random.randint(100000, 999999)}",
+                invoice_number=f"INV-{role}-{random.randint(100000, 999999)}",
                 is_planned=False
             )
             cargo_list.append(cargo)
@@ -172,4 +180,5 @@ class CargoPlaceCreateOrUpdateListClient:
             time.sleep(1)
 
         return all_responses
+
 
