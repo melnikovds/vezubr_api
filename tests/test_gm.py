@@ -1,8 +1,8 @@
 import allure
 import pytest
 import json
-from pages.cargo_create_or_update_list_page import *
-from pages.cdr_create_and_publish_page import *
+from pages.gm_page import *
+from pages.cdr_page import *
 from config.settings import *
 
 
@@ -18,7 +18,7 @@ def test_cargo_create_or_update_list_lkz(auth_token, cargo_count):
         auth_token: Токен авторизации (из фикстуры conftest)
         cargo_count: Количество грузомест (из аргумента командной строки --cargo-count)
     """
-    client = CargoPlaceCreateOrUpdateListClient(EXTERNAL_URL, auth_token)
+    client = CargoPlaceClient(EXTERNAL_URL, auth_token)
 
     # генерация параметров грузомест
     with allure.step(f"Генерация {cargo_count} грузомест"):

@@ -103,7 +103,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--cargo-count",
         action="store",
-        default="100",  # Значение по умолчанию
+        default="300",  # Значение по умолчанию
         help="Количество грузомест для генерации в тестах"
     )
 

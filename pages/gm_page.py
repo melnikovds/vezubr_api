@@ -6,7 +6,10 @@ import requests
 from datetime import datetime, timedelta
 
 
-class CargoPlaceCreateOrUpdateListClient:
+class CargoPlaceClient:
+    """
+    Клиент для работы с эндпоинтами Грузомест
+    """
     CARGO_TYPES = ["free", "pallet", "box", "bag"]
 
     VALID_EXTERNAL_ID: List[Tuple[str, str]] = [
@@ -127,6 +130,7 @@ class CargoPlaceCreateOrUpdateListClient:
                 is_planned=False
             )
             cargo_list.append(cargo)
+            # time.sleep(1)
         return cargo_list
 
     def create_or_update_cargo_places_list(self, cargo_places: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -134,15 +138,25 @@ class CargoPlaceCreateOrUpdateListClient:
         payload = {"data": cargo_places}
 
         response = requests.post(url, headers=self.headers, json=payload)
+        # time.sleep(1)
 
-        if response.status_code != 200:
-            print(f"\n❌ Ошибка create-or-update-list: {response.status_code}")
-            print(f"URL: {url}")
-            print(f"Тело запроса: {payload}")
-            print(f"Ответ сервера: {response.text}")
-            response.raise_for_status()
+        assert response.status_code == 200, \
+            f"Ожидался статус 200, получен {response.status_code}. Ответ: {response.text}"
 
-        return response.json()
+        result = response.json()
+
+        assert result.get("status") == "ok", \
+            f"Ожидался статус 'ok', получен '{result.get('status')}'. Ответ: {result}"
+
+        assert "data" in result, \
+            f"Отсутствует поле 'data' в ответе. Ответ: {result}"
+
+        assert isinstance(result.get("data"), list), \
+            f"Поле 'data' должно быть списком. Ответ: {result}"
+
+        print(f"✅ Успешно создано {len(result.get('data', []))} грузомест")
+
+        return result
 
     def create_cargo_places_batch(
             self,
@@ -180,5 +194,45 @@ class CargoPlaceCreateOrUpdateListClient:
             time.sleep(1)
 
         return all_responses
+
+    def get_cargo_place_info(self, cargo_place_id: int) -> Dict[str, Any]:
+        """
+        Получает информацию о грузоместе по ID
+
+        Args:
+            cargo_place_id: ID грузоместа
+
+        Returns:
+            Ответ API с информацией о грузоместе
+        """
+        url = f"{self.base_url}/cargo-place/{cargo_place_id}/info"
+
+        print(f"\n📋 Запрос информации о грузоместе: {url}")
+
+        response = requests.get(
+            url,
+            headers=self.headers,
+            timeout=30
+        )
+
+        time.sleep(1)
+
+        assert response.status_code == 200, \
+            f"Ожидался статус 200 для ГМ {cargo_place_id}, получен {response.status_code}. Ответ: {response.text}"
+
+        result = response.json()
+
+        assert "id" in result, \
+            f"Отсутствует поле 'id' в ответе для ГМ {cargo_place_id}. Ответ: {result}"
+
+        assert result.get("id") == cargo_place_id, \
+            f"ID в ответе ({result.get('id')}) не совпадает с запрошенным ({cargo_place_id})"
+
+        assert "status" in result, \
+            f"Отсутствует поле 'status' в ответе для ГМ {cargo_place_id}. Ответ: {result}"
+
+        print(f"✅ Получена информация о ГМ {cargo_place_id}: status={result.get('status')}")
+
+        return result
 
 
