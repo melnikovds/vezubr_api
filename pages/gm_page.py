@@ -1,6 +1,7 @@
 import random
 import  allure
 import time
+import uuid
 from typing import List, Dict, Any, Optional, Tuple
 import requests
 from datetime import datetime, timedelta
@@ -125,7 +126,8 @@ class CargoPlaceClient:
                 departure_external_id=dep_ext,
                 delivery_external_id=del_ext,
                 external_id=f"GM-{role}-{external_id}",
-                bar_code=f"ШК-{role}-00000{random.randint(100000, 999999)}",
+                # bar_code=f"ШК-{role}-00000{random.randint(100000, 999999)}",
+                bar_code=f"ШК-{role}-{int(time.time())}-{uuid.uuid4().hex[:6]}",
                 invoice_number=f"INV-{role}-{random.randint(100000, 999999)}",
                 is_planned=False
             )

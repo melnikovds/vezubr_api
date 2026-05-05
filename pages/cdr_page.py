@@ -509,12 +509,13 @@ class CargoDeliveryRequestClient:
 
         return result
 
-    def cancel_cdr_lkz(self, cdr_id: str) -> Dict[str, Any]:
+    def cancel_cdr_lkz(self, cdr_id: str, negative: bool = False) -> Dict[str, Any]:
         """
         Отмена заявки заказчиком
 
         Args:
             cdr_id: ID заявки (UUID)
+            negative: флаг негативного теста
 
         Returns:
             Ответ API
@@ -530,14 +531,130 @@ class CargoDeliveryRequestClient:
             data={}
         )
 
-        assert response.status_code == 200, \
-            f"Ожидался статус 200, получен {response.status_code}. Ответ: {response.text}"
+        result = response.json()
+
+        if not negative:
+            # ✅ Позитивный кейс
+            assert response.status_code == 200, \
+                f"Ожидался статус 200, получен {response.status_code}. Ответ: {response.text}"
+
+            print(f"✅ Заявка {cdr_id} отменена Заказчиком")
+
+        else:
+            # ❌ Негативный кейс
+            assert response.status_code == 400, \
+                f"Ожидался статус 400, получен {response.status_code}. Ответ: {response.text}"
+
+            # assert result.get("status") is False, \
+            #     f"Ожидался status=False, получен {result.get('status')}"
+
+            assert "Невозможно отменить заявку" in result.get("message", ""), \
+                f"Некорректное сообщение ошибки: {result.get('message')}"
+
+            print(f"✅ Заказчику не удалось отменить Заявку {cdr_id}")
+
+        return result
+
+    def cancel_cdr_lkp(self, cdr_id: str, negative: bool = False) -> Dict[str, Any]:
+        """
+        Отмена заявки подрядчиком
+
+        Args:
+            cdr_id: ID заявки (UUID)
+            negative: флаг негативного теста
+
+        Returns:
+            Ответ API
+        """
+        url = f"{self.base_url}/cargo-delivery-requests/{cdr_id}/execution/reject"
+
+        print(f"\n📋 Отмена заявки: {url}")
+
+        response = requests.post(
+            url,
+            headers=self.headers,
+            timeout=30,
+            json={}
+        )
 
         result = response.json()
 
-        print(f"✅ Заявка {cdr_id} отменена Заказчиком")
+        if not negative:
+            # ✅ Позитивный кейс
+            assert response.status_code == 200, \
+                f"Ожидался статус 200, получен {response.status_code}. Ответ: {response.text}"
+
+            print(f"✅ Заявка {cdr_id} отменена Подрядчиком")
+
+        else:
+            # ❌ Негативный кейс
+            assert response.status_code == 400, \
+                f"Ожидался статус 400, получен {response.status_code}. Ответ: {response.text}"
+
+            # assert result.get("status") is False, \
+            #     f"Ожидался status=False, получен {result.get('status')}"
+
+            assert "Невозможно отказаться от заявки" in result.get("message", ""), \
+                f"Некорректное сообщение ошибки: {result.get('message')}"
+
+            print(f"✅ Подрядчику не удалось отменить Заявку {cdr_id}")
 
         return result
+
+    def cancel_share_cdr(self, cdr_id: str, negative: bool = False) -> Dict[str, Any]:
+        """
+        Отмена  шаринга
+
+        Args:
+            cdr_id: ID заявки (UUID)
+            negative: флаг негативного теста
+
+        Returns:
+            Ответ API
+        """
+        url = f"{self.base_url}/cargo-delivery-requests/{cdr_id}/shares/cancel"
+
+        print(f"\n📋 Отмена шаринга: {url}")
+
+        response = requests.post(
+            url,
+            headers=self.headers,
+            timeout=30,
+            json={
+                 "producerIds": [3486]
+            }
+        )
+
+        # assert response.status_code == 200, \
+        #     f"Ожидался статус 200, получен {response.status_code}. Ответ: {response.text}"
+
+        result = response.json()
+
+        if not negative:
+            # ✅ Позитивный сценарий
+            assert response.status_code == 200, \
+                f"Ожидался статус 200, получен {response.status_code}. Ответ: {response.text}"
+
+            print(f"✅ Шаринг Заявки {cdr_id} отменён заказчиком")
+
+        else:
+            # ❌ Негативный сценарий
+            assert response.status_code == 400, \
+                f"Ожидался статус 400, получен {response.status_code}. Ответ: {response.text}"
+
+            assert result.get("status") is False, \
+                f"Ожидался status=False, получен {result.get('status')}"
+
+            assert "Невозможно отменить публикацию заявки" in result.get("message", ""), \
+                f"Некорректное сообщение ошибки: {result.get('message')}"
+
+            print(f"✅ Шаринг по Заявке {cdr_id} не удалось отменить")
+
+        return result
+
+
+
+
 
 
 
