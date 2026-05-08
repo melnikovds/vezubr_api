@@ -1,11 +1,11 @@
 import time
-
 import allure
 import pytest
 import json
 from datetime import datetime, timedelta, timezone
 from pages.gm_page import *
 from pages.cdr_page import *
+from pages.td_page import *
 from config.settings import *
 
 
@@ -281,7 +281,8 @@ def test_cancel2_cdr_with_cargo_places_lkz(
     time.sleep(1)
 
     with allure.step("ЧАСТЬ 4: Создание рейса"):
-        trip_response = cdr_client_lkp.create_trip(
+        td_client_lkp = TruckDeliveryClient(BASE_URL, lkp_token)
+        trip_response = td_client_lkp.create_trip(
             cdr_id=[cdr_id],
             trip_type="truck",
             producer_id=3486
@@ -296,7 +297,7 @@ def test_cancel2_cdr_with_cargo_places_lkz(
     time.sleep(1)
 
     with allure.step("ЧАСТЬ 5: Назначение водителя и ТС на рейс"):
-        appoint_response = cdr_client_lkp.appoint_transport(
+        appoint_response = td_client_lkp.appoint_transport(
             td_id=td_id,
             driver_id=5123,
             vehicle_id=10219
@@ -351,7 +352,7 @@ def test_cancel2_cdr_with_cargo_places_lkz(
         print(f"✅ Статус заявки: {actual_status}")
 
     with allure.step("ЧАСТЬ 9: Проверка деталки рейса"):
-        td_details = cdr_client_lkp.get_td_details(td_id)
+        td_details = td_client_lkp.get_td_details(td_id)
 
         expected_td_status = "canceled"
         actual_td_status = td_details.get("status")
@@ -512,7 +513,8 @@ def test_cancel3_cdr_with_cargo_places_lkz(
     time.sleep(1)
 
     with allure.step("ЧАСТЬ 4: Создание рейса"):
-        trip_response = cdr_client_lkp.create_trip(
+        td_client_lkp = TruckDeliveryClient(BASE_URL, lkp_token)
+        trip_response = td_client_lkp.create_trip(
             cdr_id=[cdr_id],
             trip_type="truck",
             producer_id=3486
@@ -527,7 +529,7 @@ def test_cancel3_cdr_with_cargo_places_lkz(
     time.sleep(1)
 
     with allure.step("ЧАСТЬ 5: Назначение водителя и ТС на рейс"):
-        appoint_response = cdr_client_lkp.appoint_transport(
+        appoint_response = td_client_lkp.appoint_transport(
             td_id=td_id,
             driver_id=5123,
             vehicle_id=10219
@@ -541,7 +543,7 @@ def test_cancel3_cdr_with_cargo_places_lkz(
     time.sleep(3)
 
     with allure.step("ЧАСТЬ 6: Старт исполнения рейса"):
-        start_response = cdr_client_lkp.start_td(td_id=td_id)
+        start_response = td_client_lkp.start_td(td_id=td_id)
 
         # Attach ответа
         with allure.step("Ответ API (start trip)"):
@@ -663,7 +665,7 @@ def test_cancel3_cdr_with_cargo_places_lkz(
         print(f"   completedAt: {completed_at} (-7 часов)")
 
         # Обновляем статус точки 1
-        point_response = cdr_client_lkp.update_point_status(
+        point_response = td_client_lkp.update_point_status(
             td_id=td_id,
             position=1,
             started_at=started_at,
@@ -716,7 +718,7 @@ def test_cancel3_cdr_with_cargo_places_lkz(
         print(f"✅ Статус заявки: {actual_status}")
 
     with allure.step("ЧАСТЬ 13: Проверка деталки рейса"):
-        td_details = cdr_client_lkp.get_td_details(td_id)
+        td_details = td_client_lkp.get_td_details(td_id)
 
         expected_td_status = "execution"
         actual_td_status = td_details.get("status")
@@ -740,7 +742,7 @@ def test_cancel3_cdr_with_cargo_places_lkz(
         print(f"   completedAt: {completed_at} (-7 часов)")
 
         # Обновляем статус точки 2
-        point_response = cdr_client_lkp.update_point_status(
+        point_response = td_client_lkp.update_point_status(
             td_id=td_id,
             position=2,
             started_at=started_at,
@@ -1120,7 +1122,8 @@ def test_cancel2_cdr_with_cargo_places_lkp(
     time.sleep(1)
 
     with allure.step("ЧАСТЬ 4: Создание рейса"):
-        trip_response = cdr_client_lkp.create_trip(
+        td_client_lkp = TruckDeliveryClient(BASE_URL, lkp_token)
+        trip_response = td_client_lkp.create_trip(
             cdr_id=[cdr_id],
             trip_type="truck",
             producer_id=3486
@@ -1135,7 +1138,7 @@ def test_cancel2_cdr_with_cargo_places_lkp(
     time.sleep(1)
 
     with allure.step("ЧАСТЬ 5: Назначение водителя и ТС на рейс"):
-        appoint_response = cdr_client_lkp.appoint_transport(
+        appoint_response = td_client_lkp.appoint_transport(
             td_id=td_id,
             driver_id=5123,
             vehicle_id=10219
@@ -1351,7 +1354,8 @@ def test_cancel3_cdr_with_cargo_places_lkp(
     time.sleep(1)
 
     with allure.step("ЧАСТЬ 4: Создание рейса"):
-        trip_response = cdr_client_lkp.create_trip(
+        td_client_lkp = TruckDeliveryClient(BASE_URL, lkp_token)
+        trip_response = td_client_lkp.create_trip(
             cdr_id=[cdr_id],
             trip_type="truck",
             producer_id=3486
@@ -1366,7 +1370,7 @@ def test_cancel3_cdr_with_cargo_places_lkp(
     time.sleep(1)
 
     with allure.step("ЧАСТЬ 5: Назначение водителя и ТС на рейс"):
-        appoint_response = cdr_client_lkp.appoint_transport(
+        appoint_response = td_client_lkp.appoint_transport(
             td_id=td_id,
             driver_id=5123,
             vehicle_id=10219
@@ -1380,7 +1384,7 @@ def test_cancel3_cdr_with_cargo_places_lkp(
     time.sleep(3)
 
     with allure.step("ЧАСТЬ 6: Старт исполнения рейса"):
-        start_response = cdr_client_lkp.start_td(td_id=td_id)
+        start_response = td_client_lkp.start_td(td_id=td_id)
 
         # Attach ответа
         with allure.step("Ответ API (start trip)"):
@@ -1437,7 +1441,7 @@ def test_cancel3_cdr_with_cargo_places_lkp(
         print(f"   completedAt: {completed_at} (-7 часов)")
 
         # Обновляем статус точки 1
-        point_response = cdr_client_lkp.update_point_status(
+        point_response = td_client_lkp.update_point_status(
             td_id=td_id,
             position=1,
             started_at=started_at,
@@ -1490,7 +1494,7 @@ def test_cancel3_cdr_with_cargo_places_lkp(
         print(f"✅ Статус заявки: {actual_status}")
 
     with allure.step("ЧАСТЬ 12: Проверка деталки рейса"):
-        td_details = cdr_client_lkp.get_td_details(td_id)
+        td_details = td_client_lkp.get_td_details(td_id)
 
         expected_td_status = "execution"
         actual_td_status = td_details.get("status")
@@ -1581,7 +1585,7 @@ def test_cancel3_cdr_with_cargo_places_lkp(
         print(f"   completedAt: {completed_at} (-7 часов)")
 
         # Обновляем статус точки 2
-        point_response = cdr_client_lkp.update_point_status(
+        point_response = td_client_lkp.update_point_status(
             td_id=td_id,
             position=2,
             started_at=started_at,
