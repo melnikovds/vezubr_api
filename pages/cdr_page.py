@@ -118,7 +118,7 @@ class CargoDeliveryRequestClient:
             f"{self.base_url}/cargo-delivery-requests/create-and-publish",
             headers=self.headers,
             json=payload,
-            timeout=30
+            timeout=60
         )
 
         assert response.status_code == 200, \
