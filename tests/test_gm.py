@@ -7,7 +7,7 @@ from config.settings import *
 
 
 @allure.story("Smoke test")
-@allure.feature("CDR")
+@allure.feature("ГМ")
 @allure.description("Создание выбранного количество грузомест")
 @pytest.mark.parametrize("auth_token", ["lkz_ext"], indirect=True)
 def test_cargo_create_or_update_list_lkz(auth_token, cargo_count):

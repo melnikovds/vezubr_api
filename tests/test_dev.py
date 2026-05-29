@@ -4,6 +4,7 @@ import json
 import random
 from datetime import datetime, timedelta, timezone
 from pages.gm_page import *
+from pages.task_page import *
 from pages.cdr_page import *
 from pages.td_page import *
 from config.settings import *
@@ -176,3 +177,49 @@ def test_cdr_dev_lkz(
         assert not failed_validations, (
                 "Найдены ошибки в грузоместах:\n" + "\n".join(failed_validations)
         )
+
+
+@allure.story("Smoke test")
+@allure.feature("Задание")
+@allure.description("Создание задания с фактическими грузоместами на DEV")
+@pytest.mark.parametrize("cargo_count", [10])
+def test_shipment_task_dev_lkz(lkz_token_dev, lkz_ext_token_dev, cargo_count):
+
+    with allure.step("ЧАСТЬ 1: Создание грузомест"):
+        gm_client_ext = CargoPlaceClient(make_external_url('dev'), lkz_ext_token_dev)
+
+        cargo_list = gm_client_ext.generate_cargo_places_list(
+            count=cargo_count,
+            role="lkz_ext",
+            use_predefined_addresses=False,
+            departure_external_id='AUTO 401',
+            delivery_external_id='AUTO 402'
+        )
+
+        responses = gm_client_ext.create_cargo_places_batch(cargo_list, batch_size=100)
+        assert responses, "Не получен ответ при создании грузомест"
+
+        cargo_place_ids = []
+        for response in responses:
+            assert "data" in response, f"Нет поля data: {response}"
+            batch_ids = [item["id"] for item in response.get("data", []) if "id" in item]
+            assert batch_ids, f"Нет id в ответе: {response}"
+            cargo_place_ids.extend(batch_ids)
+
+        print(f"✅ Создано {len(cargo_place_ids)} грузомест")
+
+    with allure.step("Создание задания с грузоместами"):
+        task_client = ShipmentTaskClient(make_base_url('dev'), lkz_token_dev)
+
+        task_id = task_client.create_shipment_task(
+            cargo_place_ids,
+            dep_point=25791,
+            arr_point=24552
+        )
+
+        assert task_id is not None
+
+
+
+
+
