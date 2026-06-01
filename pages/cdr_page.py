@@ -32,7 +32,8 @@ class CargoDeliveryRequestClient:
             producer_id: int = None,
             rate: int = 1000000,
             selecting_strategy: str = "rate",
-            cargo_places: List[Dict] = None
+            cargo_places: List[Dict] = None,
+            shipment_tasks: List[Dict] = None,
     ) -> Dict[str, Any]:
         """
         Создание и публикация заявки на доставку груза
@@ -83,7 +84,7 @@ class CargoDeliveryRequestClient:
                 "requiredDocuments": [],
                 "route": route
             },
-            "shipmentTasks": [],
+            "shipmentTasks": shipment_tasks or [],
             "responsibleEmployees": [],
             "comment": comment,
             "clientIdentifier": client_identifier,
@@ -104,8 +105,8 @@ class CargoDeliveryRequestClient:
             }
         }
 
-        if cargo_places:
-            payload["parameters"]["cargoPlaces"] = cargo_places
+        # if cargo_places:
+        #     payload["parameters"]["cargoPlaces"] = cargo_places
 
         print(f" Payload для создания заявки на доставку:")
         print(f"   clientIdentifier: {client_identifier}")
@@ -152,7 +153,8 @@ class CargoDeliveryRequestClient:
             comment: str = "Тестовая заявка",
             client_identifier: str = None,
             to_start_at_from: str = None,
-            cargo_places: List[Dict] = None
+            cargo_places: List[Dict] = None,
+            shipment_tasks: List[Dict] = None
     ) -> Dict[str, Any]:
         """
         Создание черновика заявки на доставку груза
@@ -203,7 +205,7 @@ class CargoDeliveryRequestClient:
                 "requiredDocuments": [],
                 "route": route
             },
-            "shipmentTasks": [],
+            "shipmentTasks": shipment_tasks or [],
             "responsibleEmployees": [],
             "comment": comment,
             "clientIdentifier": client_identifier,
@@ -215,8 +217,8 @@ class CargoDeliveryRequestClient:
             "additionalServices": [],
         }
 
-        if cargo_places:
-            payload["parameters"]["cargoPlaces"] = cargo_places
+        # if cargo_places:
+        #     payload["parameters"]["cargoPlaces"] = cargo_places
 
         print(f" Payload для создания заявки на доставку:")
         print(f"   clientIdentifier: {client_identifier}")

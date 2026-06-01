@@ -52,6 +52,7 @@ def test_create_cdr_with_task_lkz(auth_token_ext, auth_token_base, cargo_count=1
 
     task_ids = []
 
+    # Создание Заданий
     with allure.step("Создание заданий (максимум 20 ГМ в каждом)"):
         for idx, cargo_chunk in enumerate(chunk_list(cargo_place_ids, 20), 1):
             print(f"➡️ Создаем задание {idx} с {len(cargo_chunk)} ГМ")
@@ -70,6 +71,56 @@ def test_create_cdr_with_task_lkz(auth_token_ext, auth_token_base, cargo_count=1
 
     expected_tasks = (len(cargo_place_ids) + 19) // 20
     assert len(task_ids) == expected_tasks
+
+
+    # Преобразование ID в формат для CDR
+    with allure.step("Формирование shipmentTasks для заявки"):
+        departure_point_id = 19104
+        arrival_point_id = 19105
+
+        shipment_tasks_for_cdr = [
+            {
+                "id": task_id,
+                "arrivalPoint": arrival_point_id,
+                "departurePoint": departure_point_id
+            }
+            for task_id in task_ids
+        ]
+
+        print(f"📋 Сформировано {len(shipment_tasks_for_cdr)} cargoPlaces для CDR")
+
+    # Создание Заявки
+    with allure.step("Создание и публикация заявки"):
+        cdr_client = CargoDeliveryRequestClient(BASE_URL, auth_token_base)
+
+        cdr_response = cdr_client.create_delivery_request(
+            delivery_type="auto",
+            delivery_sub_type="ftl",
+            body_types=[3, 4, 7, 8],
+            vehicle_type_id=1,
+            order_type=1,
+            point_change_type=2,
+            route=[
+                {
+                    "requiredArriveAtFrom": None,
+                    "requiredArriveAtTill": None,
+                    "position": 1,
+                    "point": departure_point_id,
+                    "isLoadingWork": True,
+                    "isUnloadingWork": False
+                },
+                {
+                    "requiredArriveAtFrom": None,
+                    "requiredArriveAtTill": None,
+                    "position": 2,
+                    "point": arrival_point_id,
+                    "isLoadingWork": False,
+                    "isUnloadingWork": True
+                }
+            ],
+            comment=f"черновик заявки с {cargo_count} ГМ",
+            shipment_tasks=shipment_tasks_for_cdr
+        )
 
 
 
