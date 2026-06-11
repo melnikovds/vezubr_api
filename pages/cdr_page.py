@@ -154,6 +154,7 @@ class CargoDeliveryRequestClient:
             client_identifier: str = None,
             to_start_at_from: str = None,
             cargo_places: List[Dict] = None,
+            new_cargo_places: List[Dict] = None,
             shipment_tasks: List[Dict] = None
     ) -> Dict[str, Any]:
         """
@@ -213,7 +214,7 @@ class CargoDeliveryRequestClient:
             "toStartAtFrom": to_start_at_from,
             "toStartAtTill": None,
             "cargoPlaces": cargo_places or [],
-            "newCargoPlaces": [],
+            "newCargoPlaces": new_cargo_places or [],
             "additionalServices": [],
         }
 
@@ -465,6 +466,209 @@ class CargoDeliveryRequestClient:
             print(f"✅ Шаринг по Заявке {cdr_id} не удалось отменить")
 
         return result
+
+    def update_delivery_request(
+            self,
+            cdr_id: str,
+            delivery_type: str = "auto",
+            delivery_sub_type: str = "ftl",
+            body_types: List[int] = None,
+            vehicle_type_id: int = 1,
+            order_type: int = 1,
+            point_change_type: int = 2,
+            route: List[Dict] = None,
+            comment: str = "Тестовая заявка",
+            client_identifier: str = None,
+            to_start_at_from: str = None,
+            cargo_places: List[Dict] = None,
+            new_cargo_places: List[Dict] = None,
+            shipment_tasks: List[Dict] = None
+    ) -> Dict[str, Any]:
+        """
+        Обновление Заявки на доставку груза
+
+        Args:
+            cdr_id: id выбранной Заявки
+            cargo_places: Список грузомест в формате [{"id": 123, "arrivalPoint": 1, "departurePoint": 2}, ...]
+        """
+        if body_types is None:
+            body_types = [3, 4, 7, 8]
+
+        if route is None:
+            route = []
+
+        if to_start_at_from is None:
+            to_start_at_from = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+        if client_identifier is None:
+            client_identifier = f"CDR-update-{datetime.now().strftime('%d%m%Y-%H%M%S')}"
+
+        payload = {
+            "deliveryType": delivery_type,
+            "deliverySubType": delivery_sub_type,
+            "parameters": {
+                "orderCategory": 1,
+                "bodyTypes": body_types,
+                "isDangerousGoods": False,
+                "vehicleTypeId": vehicle_type_id,
+                "isCornerPillarRequired": False,
+                "isStrapRequired": False,
+                "isChainRequired": False,
+                "isNetRequired": False,
+                "isTarpaulinRequired": False,
+                "isWheelChockRequired": False,
+                "isGPSMonitoringRequired": False,
+                "isWoodenFloorRequired": False,
+                "isDoppelstockRequired": False,
+                "isTakeOutPackageRequired": False,
+                "isDriverLoaderRequired": False,
+                "orderType": order_type,
+                "isHydroliftRequired": False,
+                "isPalletJackRequired": False,
+                "isConicsRequired": False,
+                "isThermographRequired": False,
+                "isLiftingValidationRequired": False,
+                "pointChangeType": point_change_type,
+                "isSanitaryPassportRequired": False,
+                "isSanitaryBookRequired": False,
+                "requiredDocuments": [],
+                "route": route
+            },
+            "shipmentTasks": shipment_tasks or [],
+            "responsibleEmployees": [],
+            "comment": comment,
+            "clientIdentifier": client_identifier,
+            "innerComment": None,
+            "toStartAtFrom": to_start_at_from,
+            "toStartAtTill": None,
+            "cargoPlaces": cargo_places or [],
+            "newCargoPlaces": new_cargo_places or [],
+            "additionalServices": [],
+        }
+
+        print(f" Payload для обновления заявки на доставку:")
+        print(f"   clientIdentifier: {client_identifier}")
+        print(f"   deliverySubType: {delivery_sub_type}")
+        print(f"   route points: {len(route)}")
+        if cargo_places:
+            print(f"   cargoPlaces: {len(cargo_places)}")
+
+        response = requests.post(
+            f"{self.base_url}/cargo-delivery-requests/{cdr_id}/update",
+            headers=self.headers,
+            json=payload,
+            timeout=30
+        )
+
+        assert response.status_code == 200, \
+            f"Ожидался статус 200, получен {response.status_code}. Ответ: {response.text}"
+
+        result = response.json()
+
+        assert result == [], \
+            f"Ожидался пустой массив, но получен: {result}"
+
+        print(f"✅ Заявка {cdr_id} обновлена")
+
+        return result
+
+    def update_active_delivery_request(
+            self,
+            cdr_id: str,
+            body_types: List[int] = None,
+            vehicle_type_id: int = 1,
+            route: List[Dict] = None,
+            comment: str = None,
+            to_start_at_from: str = None,
+            cargo_places: List[Dict] = None,
+            shipment_tasks: List[Dict] = None
+    ) -> Dict[str, Any]:
+        """
+        Обновление Заявки на доставку груза
+
+        Args:
+            cdr_id: id выбранной Заявки
+            cargo_places: Список грузомест в формате [{"id": 123, "arrivalPoint": 1, "departurePoint": 2}, ...]
+        """
+        if body_types is None:
+            body_types = [3, 4, 7, 8]
+
+        if route is None:
+            route = []
+
+        if to_start_at_from is None:
+            to_start_at_from = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+        payload = {
+            "comment": comment,
+            "innerComment": None,
+            "vehicleTypeId": vehicle_type_id,
+            "bodyTypes": body_types,
+            "toStartAtFrom": to_start_at_from,
+            "route": route,
+            "shipmentTasks": shipment_tasks or [],
+            "cargoPlaces": cargo_places or []
+        }
+
+        print(f" Payload для обновления заявки на доставку:")
+        print(f"   route points: {len(route)}")
+        if cargo_places:
+            print(f"   cargoPlaces: {len(cargo_places)}")
+
+        response = requests.post(
+            f"{self.base_url}/cargo-delivery-requests/{cdr_id}/update/active",
+            headers=self.headers,
+            json=payload,
+            timeout=30
+        )
+
+        assert response.status_code == 200, \
+            f"Ожидался статус 200, получен {response.status_code}. Ответ: {response.text}"
+
+        result = response.json()
+
+        assert result == {}, \
+            f"Ожидался пустой объект, но получен: {result}"
+
+        print(f"✅ Заявка {cdr_id} обновлена")
+
+        return result
+
+    def process_change_request(self, cr_id: str, action: str) -> Dict[str, Any]:
+        """
+        Обрабатывает change request
+
+        Args:
+            cr_id: ID change request (UUID)
+            action: действие (accept | decline | delete)
+
+        Returns:
+            Ответ API
+        """
+
+        endpoints = {
+            "accept": "accept",
+            "decline": "decline",
+            "delete": "delete"
+        }
+
+        assert action in endpoints, \
+            f"Неизвестное действие '{action}'. Допустимые: {list(endpoints.keys())}"
+
+        url = f"{self.base_url}/change-requests/{cr_id}/cargo-delivery-request/{endpoints[action]}"
+
+        print(f"\n📦 Обработка change request ({action}): {url}")
+
+        response = requests.post(
+            url,
+            headers=self.headers,
+            timeout=30
+        )
+
+        assert response.status_code == 200, \
+            f"Ожидался статус 200, получен {response.status_code}. Ответ: {response.text}"
+
+        return response.json()
 
 
 

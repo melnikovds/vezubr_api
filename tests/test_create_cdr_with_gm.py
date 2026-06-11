@@ -132,11 +132,11 @@ def test_create_cdr_with_cargo_places_lkz(auth_token_ext, auth_token_base, cargo
 
 @allure.story("Smoke test")
 @allure.feature("CDR")
-@allure.description("Создание черновика Заявки с грузоместами")
+@allure.description("Создание черновика Заявки с существующими грузоместами")
 @pytest.mark.parametrize("auth_token_ext", ["lkz_ext"], indirect=True)
 @pytest.mark.parametrize("auth_token_base", ["lkz"], indirect=True)
 @pytest.mark.parametrize("cargo_count", [50])
-def test_create_draft_cdr_with_cargo_places_lkz(auth_token_ext, auth_token_base, cargo_count):
+def test_create_draft1_cdr_with_cargo_places_lkz(auth_token_ext, auth_token_base, cargo_count):
     """
     Тест создания черновика Заявки
 
@@ -287,6 +287,158 @@ def test_create_draft_cdr_with_cargo_places_lkz(auth_token_ext, auth_token_base,
                     external_id = gm_info.get("externalId")
                     assert external_id and len(external_id) > 0, \
                         f"ГМ {cargo_id}: externalId пустое"
+
+                    is_planned = gm_info.get("isPlanned")
+                    assert is_planned == False, \
+                        f"ГМ {cargo_id}: Ожидалось isPlanned=False, получено: {is_planned}"
+
+                    weight = gm_info.get("weight")
+                    assert weight is not None and weight > 0, \
+                        f"ГМ {cargo_id}: weight пустое или некорректное"
+
+                    volume = gm_info.get("volume")
+                    assert volume is not None and volume > 0, \
+                        f"ГМ {cargo_id}: volume пустое или некорректное"
+
+                    # Проверка что массив cargoDeliveryRequests содержит ID заявки
+                    cargo_delivery_requests = gm_info.get("cargoDeliveryRequests", [])
+                    cdr_ids_in_gm = [cdr["id"] for cdr in cargo_delivery_requests if "id" in cdr]
+                    assert cdr_id in cdr_ids_in_gm, \
+                        f"ГМ {cargo_id}: Заявка {cdr_id} не найдена в cargoDeliveryRequests. Найдено: {cdr_ids_in_gm}"
+
+                    validated_count += 1
+                    print(f"✅ ГМ {cargo_id}: все проверки пройдены")
+
+                except AssertionError as e:
+                    failed_validations.append(f"ГМ {cargo_id}: {str(e)}")
+                    print(f"❌ ГМ {cargo_id}: {str(e)}")
+                except Exception as e:
+                    failed_validations.append(f"ГМ {cargo_id}: Ошибка запроса - {str(e)}")
+                    print(f"❌ ГМ {cargo_id}: Ошибка запроса - {str(e)}")
+
+                time.sleep(1)
+
+        # Итоговая проверка
+        assert len(failed_validations) == 0, \
+            f"Не прошли проверки для {len(failed_validations)} грузомест:\n" + "\n".join(failed_validations)
+
+        print(f"\n✅ Проверено {validated_count} грузомест, все проверки пройдены")
+
+
+@allure.story("Smoke test")
+@allure.feature("CDR")
+@allure.description("Создание черновика Заявки с новыми грузоместами")
+@pytest.mark.parametrize("auth_token_base", ["lkz"], indirect=True)
+def test_create_draft2_cdr_with_cargo_places_lkz(auth_token_base, cargo_count):
+    """
+    Тест создания черновика Заявки
+
+    Args:
+        auth_token_base: Токен внутренней системы для создания заявки
+    """
+
+    # Создание Заявки
+    with allure.step("Создание и публикация заявки"):
+        cdr_client = CargoDeliveryRequestClient(BASE_URL, auth_token_base)
+
+        cdr_response = cdr_client.create_delivery_request(
+            new_cargo_places=[
+                {
+                    "volume": 1000000,
+                    "title": "bmnbmnb",
+                    "cost": 3654300,
+                    "departurePoint": 27027,
+                    "arrivalPoint": 27046,
+                    "quantity": 111,
+                    "weight": 111000,
+                    "type": "box"
+                },
+                {
+                    "volume": 2000000,
+                    "title": "sdfgs",
+                    "cost": 654800,
+                    "departurePoint": 27027,
+                    "arrivalPoint": 27046,
+                    "quantity": 222,
+                    "weight": 222000,
+                    "type": "box"
+                }
+            ],
+            delivery_type="auto",
+            delivery_sub_type="ftl",
+            body_types=[3, 4, 7, 8],
+            vehicle_type_id=1,
+            order_type=1,
+            point_change_type=2,
+            route=[
+                {
+                    "requiredArriveAtFrom": None,
+                    "requiredArriveAtTill": None,
+                    "position": 1,
+                    "point": 27027,
+                    "isLoadingWork": True,
+                    "isUnloadingWork": False
+                },
+                {
+                    "requiredArriveAtFrom": None,
+                    "requiredArriveAtTill": None,
+                    "position": 2,
+                    "point": 27046,
+                    "isLoadingWork": False,
+                    "isUnloadingWork": True
+                }
+            ],
+            comment=f"черновик заявки с новыми ГМ",
+        )
+
+    # Проверка ответа
+    with allure.step("Проверка ответа"):
+        assert cdr_response.get("id") is not None, "CDR не создан: отсутствует ID"
+        assert cdr_response.get("requestNr") is not None, "CDR не создан: отсутствует requestNr"
+        print(f"✅ Заявка создана: ID={cdr_response.get('id')}, requestNr={cdr_response.get('requestNr')}")
+
+    time.sleep(5)
+
+    with allure.step("Проверка статуса заявки и наличия грузомест"):
+        cdr_id=cdr_response.get('id')
+        cdr_details = cdr_client.get_cdr_details(cdr_id)
+
+        with allure.step("Проверка статуса заявки"):
+            expected_status = "draft"
+            actual_status = cdr_details.get("status")
+            assert actual_status == expected_status, \
+                f"Ожидался статус '{expected_status}', получен: '{actual_status}'"
+            print(f"Статус заявки: {actual_status}")
+
+        with allure.step("Проверка наличия всех грузомест в заявке"):
+            cargo_places_in_cdr = cdr_details.get("cargoPlaces", [])
+            cdr_cargo_ids = [cp["id"] for cp in cargo_places_in_cdr if "id" in cp]
+
+            assert len(cdr_cargo_ids) == 2, \
+                f"Ожидалось 2 ГМ в заявке, получено: {len(cdr_cargo_ids)}"
+
+            print(f"✅ Все грузоместа присутствуют в заявке")
+
+    with allure.step("Проверка деталей грузомест"):
+        gm_client_base = CargoPlaceClient(BASE_URL, auth_token_base)
+
+        validated_count = 0
+        failed_validations = []
+
+        # Проверяем первые 10 грузомест, или все, если их меньше 10
+        ids_to_check = cdr_cargo_ids[:10] if cargo_count > 10 else cdr_cargo_ids
+
+        for cargo_id in ids_to_check:
+            with allure.step(f"Проверка грузоместа {cargo_id}"):
+                try:
+                    gm_info = gm_client_base.get_cargo_place_info(cargo_id)
+
+                    assert gm_info.get("status") == "new", \
+                        f"ГМ {cargo_id}: Ожидался статус 'new', получен: '{gm_info.get('status')}'"
+
+                    bar_code = gm_info.get("barCode")
+                    assert bar_code and len(bar_code) > 0, \
+                        f"ГМ {cargo_id}: barCode пустое"
 
                     is_planned = gm_info.get("isPlanned")
                     assert is_planned == False, \

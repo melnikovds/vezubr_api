@@ -13,7 +13,7 @@ from config.settings import *
 @allure.feature("CDR")
 @allure.description("Выполнение Заявки с грузоместами")
 @pytest.mark.parametrize("cargo_count", [200])
-def test_execute_cdr_with_cargo_places_lkz(
+def test_execute1_cdr_with_cargo_places_lkz(
     lkz_ext_token,
     lkz_token,
     lkp_token,
