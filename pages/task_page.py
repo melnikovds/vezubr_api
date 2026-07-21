@@ -92,7 +92,7 @@ class ShipmentTaskClient:
 
         return task_id
 
-    def get_shipment_task(self, task_id: str) -> Dict[str, Any]:
+    def get_shipment_task_info(self, task_id: str) -> Dict[str, Any]:
         url = f"{self.base_url}/shipment/tasks/{task_id}"
 
         response = requests.get(url, headers=self.headers)

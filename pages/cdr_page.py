@@ -497,8 +497,8 @@ class CargoDeliveryRequestClient:
         if route is None:
             route = []
 
-        if to_start_at_from is None:
-            to_start_at_from = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        # if to_start_at_from is None:
+        #     to_start_at_from = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
         if client_identifier is None:
             client_identifier = f"CDR-update-{datetime.now().strftime('%d%m%Y-%H%M%S')}"
@@ -539,7 +539,7 @@ class CargoDeliveryRequestClient:
             "comment": comment,
             "clientIdentifier": client_identifier,
             "innerComment": None,
-            "toStartAtFrom": to_start_at_from,
+            "toStartAtFrom": to_start_at_from or None,
             "toStartAtTill": None,
             "cargoPlaces": cargo_places or [],
             "newCargoPlaces": new_cargo_places or [],
@@ -596,15 +596,15 @@ class CargoDeliveryRequestClient:
         if route is None:
             route = []
 
-        if to_start_at_from is None:
-            to_start_at_from = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        # if to_start_at_from is None:
+        #     to_start_at_from = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
         payload = {
             "comment": comment,
             "innerComment": None,
             "vehicleTypeId": vehicle_type_id,
             "bodyTypes": body_types,
-            "toStartAtFrom": to_start_at_from,
+            "toStartAtFrom": to_start_at_from or None,
             "route": route,
             "shipmentTasks": shipment_tasks or [],
             "cargoPlaces": cargo_places or []

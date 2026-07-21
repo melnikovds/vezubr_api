@@ -52,7 +52,7 @@ def test_shipment_task_create_with_gm_lkz(lkz_token, lkz_ext_token, cargo_count)
         assert task_id is not None
 
     with allure.step("Получение деталки задания"):
-        task_data = task_client.get_shipment_task(task_id)
+        task_data = task_client.get_shipment_task_info(task_id)
 
     with allure.step("Проверка статуса задания"):
         assert task_data["status"] == "created", \
